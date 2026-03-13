@@ -2,7 +2,7 @@ export const Hero = () => {
     return (
         <section className="min-h-[90vh] px-4 md:px-10 lg:px-40 flex flex-col justify-center py-16 lg:py-24">
             <div className="lg:w-[60%]">
-                <h1 className="text-4xl sm:text-4xl lg:text-7xl text-[#171717] font-semibold font-nohemi leading-[1.1]">
+                <h1 className="text-4xl sm:text-4xl lg:text-7xl text-[#171717] font-nohemi leading-[1.1]">
                     Interactive tutorials <br /><span className="text-[#a3a3a3] text-4xl md:tracking-wide sm:text-4xl lg:text-7xl">in minutes with AI</span>
                 </h1>
                 <p className="mt-4 text-[#5c5c5c] text-sm sm:text-lg">

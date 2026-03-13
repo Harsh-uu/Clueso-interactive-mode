@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const navLinks = [
   { label: "Problem", href: "#problem" },
-  { label: "Demo", href: "#demo" },
+  { label: "Interactive Demo", href: "#demo" },
   { label: "How It Works", href: "#how-it-works" },
 ];
 
@@ -42,7 +42,7 @@ export const Header = () => {
       <div className="sticky z-50 bg-white top-0 border-b border-gray-200">
         <div className="flex justify-between py-3 md:py-4 items-center text-[#171717] text-sm px-4 md:px-10 lg:px-40">
           <div className="flex flex-col ">
-          <h1 className="font-semibold font-nohemi tracking-wide text-2xl">Clueso </h1>
+          <h1 className="font-nohemi tracking-wide text-2xl">Clueso </h1>
           <span className="-mt-2 ml-0.5">Interactive Mode</span>
           </div>
 

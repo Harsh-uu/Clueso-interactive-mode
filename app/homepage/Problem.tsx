@@ -1,55 +1,109 @@
-const problems = [
+"use client";
+
+import Image from "next/image";
+import { motion } from "framer-motion";
+
+type ProblemItem = {
+  num: string;
+  heading: string;
+  description: string;
+  background: string;
+  image: string;
+};
+
+const problems: ProblemItem[] = [
   {
-    num: 1,
-    heading: "Users don't know what prompts to use",
+    num: "01",
+    heading: "Hard to Follow",
     description:
-      "Most people stare at the AI chat box with no idea what to type. Without guidance, they default to vague questions and get shallow, generic answers.",
+      "Users constantly pause and rewind videos just to replicate simple steps.",
+    background: "#e93544",
+    image: "/p1.png",
   },
   {
-    num: 2,
-    heading: "Prompts are repetitive and time-consuming",
+    num: "02",
+    heading: "Easy to Forget",
     description:
-      "Power users end up copy-pasting the same prompts across tabs. There's no easy way to reuse or share what works without manual effort every single time.",
+      "Watching a workflow once doesn't mean users can actually remember it.",
+    background: "#dd41c6",
+    image: "/p2.png",
   },
   {
-    num: 3,
-    heading: "Prompts should depend on the context",
+    num: "03",
+    heading: "No Hands-on Practice",
     description:
-      "A prompt that works on LinkedIn is useless on GitHub. AI needs to understand where you are and what you're doing to give actually useful results.",
+      "Users only watch tutorials instead of interacting with the product themselves.",
+    background: "#3559e9",
+    image: "/p4.png",
   },
 ];
 
-export const Problem = () => {
-  return (
-    <div className="max-w-5xl mx-auto px-4 py-16 lg:py-20">
-      <p className="text-sm text-[#666fdf] font-semibold tracking-widest uppercase text-center">
-        The Problem
-      </p>
-      <h2 className="text-3xl lg:text-4xl text-center mt-3 [text-shadow:2px_2px_2px_black]">
-        Great AI results require great prompts
-      </h2>
-      <p className="text-[#939db8] text-center mt-4 max-w-lg mx-auto">
-        But most users struggle to write them — and context changes with every website.
-      </p>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-14">
-        {problems.map((problem) => (
-          <div
-            key={problem.num}
-            className="group relative rounded-2xl border border-[#c9d3ee]/10 bg-white/3 backdrop-blur-md p-6 transition-all duration-300 hover:border-[#666fdf]/40 hover:bg-white/6"
+const ProblemCard = ({
+  problem,
+  index,
+}: {
+  problem: ProblemItem;
+  index: number;
+}) => (
+  <motion.article
+    className="sticky top-24 w-full rounded-lg bg-[#f7f7f7] overflow-hidden border border-gray-200/80 mb-16"
+    style={{ zIndex: index + 1 }}
+  >
+    <div className="flex items-center justify-between px-6 md:px-10 lg:px-24 py-8 lg:py-10 min-h-72">
+      <div className="flex flex-col max-w-sm">
+        <span className="text-3xl font-extralight text-[#d1d1d1] font-nohemi leading-none select-none mb-4">
+          Problem {problem.num}
+        </span>
+        <h3 className="text-2xl lg:text-3xl font-nohemi leading-tight">
+          <span
+            className="text-white p-2 tracking-wide inline"
+            style={{ backgroundColor: problem.background }}
           >
-            <span className="inline-block text-xs font-semibold tracking-wider uppercase text-[#666fdf] mb-4">
-              Problem {problem.num}
-            </span>
-            <h3 className="text-lg font-semibold text-[#e2e5ec] leading-snug">
-              {problem.heading}
-            </h3>
-            <p className="mt-3 text-sm leading-relaxed text-[#939db8]">
-              {problem.description}
-            </p>
-          </div>
-        ))}
+            {problem.heading}
+          </span>
+        </h3>
+        <p className="mt-4 text-[#5c5c5c] text-sm lg:text-base leading-relaxed">
+          {problem.description}
+        </p>
+      </div>
+
+      <div className="hidden lg:flex items-center justify-center w-120 h-full">
+        <Image
+          src={problem.image}
+          alt="Problem visual placeholder"
+          width={1200}
+          height={1200}
+          style={{height: '220px'}}
+          className="opacity-80 w-full max-w-lg object-contain"
+        />
       </div>
     </div>
+  </motion.article>
+);
+
+export const Problem = () => {
+  return (
+    <section id="problem" className="w-full">
+      {/* Heading — matches Clueso layout exactly */}
+      <div className="px-4 md:px-10 lg:px-40 pt-16 lg:pt-20 pb-8">
+        <p className="text-sm text-[#da5cc7] font-semibold tracking-widest uppercase">
+          ✦ The Problem
+        </p>
+        <h2 className="text-3xl lg:text-5xl mt-3 font-nohemi text-[#171717] leading-tight max-w-2xl">
+          Learning software shouldn't be passive
+        </h2>
+        <p className="text-[#5c5c5c] mt-4 hidden lg:block text-lg max-w-xl leading-relaxed">
+          Most product tutorials are passive. Users watch the workflow but
+          rarely practice it themselves.
+        </p>
+      </div>
+
+      <div className="px-4 md:px-10 lg:px-40 pb-24">
+        {problems.map((problem, index) => (
+          <ProblemCard key={problem.num} problem={problem} index={index} />
+        ))}
+        <div className="h-24" />
+      </div>
+    </section>
   );
 };

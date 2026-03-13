@@ -1,5 +1,6 @@
 import { Header } from "./homepage/Header";
 import { Hero } from "./homepage/Hero";
+import { Problem } from "./homepage/Problem";
 
 export default function Home() {
   return (
@@ -18,6 +19,7 @@ export default function Home() {
           className="hidden lg:block absolute -top-[2%] -right-[28%] w-250 rounded-bl-2xl pointer-events-none -z-10"
         />
       </div>
+      <Problem/>
     </div>
   );
 }
