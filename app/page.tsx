@@ -1,6 +1,7 @@
 import { Header } from "./homepage/Header";
 import { Hero } from "./homepage/Hero";
 import { Problem } from "./homepage/Problem";
+import { Solution } from "./homepage/Solution";
 
 export default function Home() {
   return (
@@ -20,6 +21,7 @@ export default function Home() {
         />
       </div>
       <Problem/>
+      <Solution/>
     </div>
   );
 }

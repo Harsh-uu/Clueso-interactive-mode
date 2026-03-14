@@ -1,84 +1,123 @@
-const packs = [
+"use client";
+
+import dynamic from "next/dynamic";
+
+const RiveAnimation = dynamic(
+  () => import("../components/RiveAnimation"),
+  { ssr: false }
+);
+
+type SolutionItem = {
+  num: string;
+  heading: string;
+  description: string;
+  src: string;
+  artboard: string;
+  stateMachine: string;
+};
+
+const solutions: SolutionItem[] = [
   {
-    site: "LinkedIn",
-    prompts: [
-      "Write a connection request for a hiring manager",
-      "Rewrite my About section for a product role",
-      "Generate a post celebrating a career milestone",
-      "Summarize this profile and suggest talking points",
-    ],
+    num: "01",
+    heading: "Guided Steps",
+    description:
+      "Users are guided through the workflow step by step, just like in a real product.",
+    src: "/animations/optimised_website_animations.riv",
+    artboard: "How to doc",
+    stateMachine: "How to loop",
   },
   {
-    site: "YouTube",
-    prompts: [
-      "Summarize this video in 3 bullet points",
-      "Generate timestamps from the transcript",
-      "Write a comment asking a thoughtful follow-up",
-      "Turn this tutorial into step-by-step notes",
-    ],
+    num: "02",
+    heading: "Clickable Interface",
+    description:
+      "Learners interact with a simulated UI instead of passively watching a video.",
+    src: "/animations/optimised_website_animations.riv",
+    artboard: "Zoom",
+    stateMachine: "Zoom - Loop",
   },
   {
-    site: "GitHub",
-    prompts: [
-      "Explain this pull request diff in plain English",
-      "Write a clear issue description from this bug",
-      "Suggest improvements for this README",
-      "Generate a commit message from staged changes",
-    ],
+    num: "03",
+    heading: "Instant Feedback",
+    description:
+      "Each action confirms whether the step was completed correctly.",
+    src: "/animations/optimised_website_animations.riv",
+    artboard: "Flawless video script",
+    stateMachine: "Video script loop",
   },
   {
-    site: "Blog",
-    prompts: [
-      "Summarize this article in one paragraph",
-      "List the key takeaways from this post",
-      "Draft a reply with a counter-argument",
-      "Rewrite the intro to hook readers faster",
-    ],
+    num: "04",
+    heading: "Learn By Doing",
+    description:
+      "Interactive practice helps user understand workflows much faster.",
+    src: "/animations/optimised_website_animations.riv",
+    artboard: "AI Voices",
+    stateMachine: "AI Voices- Loop",
   },
 ];
 
-export const Solution = () => {
-  return (
-    <div className="max-w-5xl mx-auto px-4 py-16 lg:py-20">
-      <p className="text-sm text-[#666fdf] font-semibold tracking-widest uppercase text-center">
-        The Solution
-      </p>
-      <h2 className="text-3xl lg:text-4xl text-center mt-3 [text-shadow:2px_2px_2px_black]">
-        Context-aware prompts for every website
-      </h2>
-      <p className="text-[#939db8] text-center mt-4 max-w-xl mx-auto">
-        Merlin context packs automatically suggests the best prompt depending on
-        the website you're browsing.
-      </p>
+const SolutionCard = ({
+  solution,
+}: {
+  solution: SolutionItem;
+}) => (
+  <article className="rounded-2xl border bg-white border-gray-200 overflow-hidden">
+    <div className="relative h-48 lg:h-56">
+      <div className="absolute inset-0" />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-14">
-        {packs.map((pack) => (
-          <div
-            key={pack.site}
-            className="group rounded-2xl border border-[#c9d3ee]/10 bg-white/3 backdrop-blur-md p-6 transition-all duration-300 hover:border-[#666fdf]/40 hover:bg-white/6"
-          >
-            <h3 className="text-lg font-semibold text-[#e2e5ec]">
-              {pack.site}
-            </h3>
-
-            <ul className="mt-4 space-y-2.5">
-              {pack.prompts.map((prompt) => (
-                <li
-                  key={prompt}
-                  className="flex items-start gap-2 text-sm text-[#939db8]"
-                >
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#666fdf]" />
-                  {prompt}
-                </li>
-              ))}
-            </ul>
-
-            <button className="mt-5 text-sm font-semibold text-[#666fdf] cursor-pointer transition-colors hover:text-[#8b92f0]">
-              View prompts →
-            </button>
-          </div>
-        ))}
+      <div className="absolute inset-0 flex items-center justify-center p-6">
+        <RiveAnimation
+          src={solution.src}
+          artboard={solution.artboard}
+          stateMachine={solution.stateMachine}
+        />
       </div>
     </div>
+
+    <div className="px-6 lg:px-8 py-6 lg:py-7">
+      <h3 className="text-2xl font-nohemi tracking-wide text-[#171717]">
+        {solution.heading}
+      </h3>
+
+      <p className="mt-3 text-[#5c5c5c] text-base leading-relaxed max-w-xl">
+        {solution.description}
+      </p>
+    </div>
+  </article>
+);
+
+export const Solution = () => {
+  return (
+    <section id="solution" className="w-full">
+      <div className="px-4 md:px-10 lg:px-40 pt-16 lg:pt-20 pb-8">
+        <p className="text-sm text-[#da5cc7] font-semibold tracking-widest uppercase">
+          ✦ The Solution
+        </p>
+
+        <h2 className="text-3xl lg:text-5xl mt-3 font-nohemi text-[#171717] leading-tight max-w-3xl">
+          Introducting Interactive Mode
+        </h2>
+
+        <p className="text-[#5c5c5c] mt-4 hidden lg:block text-lg max-w-xl leading-relaxed">
+          Turn tutorials into interactive workflows users can click through and
+          practice step by step.
+        </p>
+      </div>
+
+      <div className="px-4 md:px-10 lg:px-40 pb-24">
+        <div className="relative">
+          <div className="pointer-events-none absolute left-1/2 top-1/2 h-200 w-lg -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#f8f8f8] blur-3xl opacity-95" />
+
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(248,248,248,0.98)_0%,rgba(248,248,248,0.86)_18%,rgba(248,248,248,0.56)_38%,rgba(248,248,248,0.16)_62%,rgba(248,248,248,0)_82%)]" />
+
+          <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+            {solutions.map((solution) => (
+              <SolutionCard key={solution.num} solution={solution} />
+            ))}
+          </div>
+        </div>
+
+        <div className="h-16 lg:h-20" />
+      </div>
+    </section>
   );
 };
