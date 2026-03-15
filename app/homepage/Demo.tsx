@@ -1,346 +1,521 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, useCallback } from "react";
 
-/* ── prompt data per site ─────────────────────────────────────── */
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-const sitePrompts: Record<string, string[]> = {
-  LinkedIn: [
-    "Write a connection request for a hiring manager",
-    "Rewrite my About section for a product role",
-    "Generate a post celebrating a career milestone",
-    "Summarize this profile and suggest talking points",
-  ],
-  YouTube: [
-    "Summarize this video in 5 bullet points",
-    "Generate timestamps from the transcript",
-    "Write a thoughtful follow-up comment",
-    "Turn this tutorial into step-by-step notes",
-  ],
-  GitHub: [
-    "Explain this pull request diff in plain English",
-    "Write a clear issue description from this bug",
-    "Suggest improvements for this README",
-    "Generate a commit message from staged changes",
-  ],
-  Blog: [
-    "Summarize this article in one paragraph",
-    "List the key takeaways from this post",
-    "Draft a reply with a counter-argument",
-    "Rewrite the intro to hook readers faster",
-  ],
-  Twitter: [
-    "Turn this idea into a viral thread with a hook",
-    "Write a witty quote-tweet reply",
-    "Summarize this thread into one tweet",
-    "Generate 3 reply options for this tweet",
-  ],
+type FeedbackState = "idle" | "correct" | "wrong";
+
+type TutorialStep = {
+  id: number;
+  instruction: string;
+  targetId: string;
+  hint: string;
 };
 
-const sites = Object.keys(sitePrompts);
+// ─── Data ─────────────────────────────────────────────────────────────────────
 
-const funnyMessages = [
-  "You really thought this would work? 😂 This is just a demo, my friend.",
-  "Nice try! But I'm just a pretty UI with no brain behind it... yet. 🧠",
-  "Hold on, let me pretend to think... 🤔 Nope, still a demo.",
-  "Error 418: I'm a teapot. Just kidding — I'm a landing page. ☕",
-  "I appreciate the enthusiasm, but I'm about as real as a unicorn. 🦄",
-  "Plot twist: the real AI was the friends we made along the way. 🤝",
-  "If I had a dollar for every time someone tried this... I'd have like $4. 💰",
+const TUTORIAL_STEPS: TutorialStep[] = [
+  {
+    id: 1,
+    instruction: 'Click the "Settings" button in the sidebar.',
+    targetId: "sidebar-settings",
+    hint: "Look for Settings in the left sidebar.",
+  },
+  {
+    id: 2,
+    instruction: 'Click the "Billing" tab in the top navigation.',
+    targetId: "tab-billing",
+    hint: "Find the Billing tab in the top navigation bar.",
+  },
+  {
+    id: 3,
+    instruction: 'Toggle "Enable Notifications" in the content area.',
+    targetId: "toggle-notifications",
+    hint: "Scroll the main content area and find the toggle.",
+  },
 ];
 
-/* ── SVG icons ────────────────────────────────────────────────── */
+const TOTAL_STEPS = TUTORIAL_STEPS.length;
 
-const LinkedInIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
-    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-  </svg>
-);
-const YouTubeIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
-    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-  </svg>
-);
-const GitHubIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
-    <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
-  </svg>
-);
-const BlogIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-    <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-    <path d="M8 7h6" /><path d="M8 11h8" />
-  </svg>
-);
-const TwitterIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
-    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-  </svg>
-);
-const SendIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-    <path d="M3.105 2.288a.75.75 0 0 0-.826.95l1.414 4.926A1.5 1.5 0 0 0 5.135 9.25h6.115a.75.75 0 0 1 0 1.5H5.135a1.5 1.5 0 0 0-1.442 1.086l-1.414 4.926a.75.75 0 0 0 .826.95 28.897 28.897 0 0 0 15.293-7.154.75.75 0 0 0 0-1.115A28.897 28.897 0 0 0 3.105 2.288Z" />
-  </svg>
-);
-const SparkleIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-    <path d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.381c-.833.067-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.485c.713.436 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.584-.536-1.65l-4.752-.382-1.831-4.401Z" />
-  </svg>
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+const StepProgress = ({
+  current,
+  total,
+  completed,
+}: {
+  current: number;
+  total: number;
+  completed: number[];
+}) => (
+  <div className="flex items-center gap-3">
+    <span className="text-xs font-semibold tracking-widest uppercase text-[#5c5c5c]">
+      Step {current} of {total}
+    </span>
+    <div className="flex gap-1.5">
+      {Array.from({ length: total }, (_, i) => i + 1).map((step) => (
+        <span
+          key={step}
+          className={`block h-1.5 w-6 rounded-full transition-all duration-300 ${
+            completed.includes(step)
+              ? "bg-[#da5cc7]"
+              : step === current
+              ? "bg-[#171717]"
+              : "bg-gray-200"
+          }`}
+        />
+      ))}
+    </div>
+  </div>
 );
 
-const siteIconMap: Record<string, () => React.JSX.Element> = {
-  LinkedIn: LinkedInIcon,
-  YouTube: YouTubeIcon,
-  GitHub: GitHubIcon,
-  Blog: BlogIcon,
-  Twitter: TwitterIcon,
-};
-
-const siteAccent: Record<string, string> = {
-  LinkedIn: "#0a66c2",
-  YouTube: "#ff0000",
-  GitHub: "#e2e5ec",
-  Blog: "#f59e0b",
-  Twitter: "#e2e5ec",
-};
-
-/* ── component ────────────────────────────────────────────────── */
-
-export const Demo = () => {
-  const [active, setActive] = useState("LinkedIn");
-  const [loading, setLoading] = useState(false);
-  const [inputValue, setInputValue] = useState("");
-  const [funnyReply, setFunnyReply] = useState("");
-  const [displayedReply, setDisplayedReply] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
-  const funnyIndexRef = useRef(0);
-
-  const handleSiteChange = (site: string) => {
-    if (site === active) return;
-    setActive(site);
-    setLoading(true);
-    setInputValue("");
-    setFunnyReply("");
-    setDisplayedReply("");
-    setIsTyping(false);
-  };
-
-  const handleSend = useCallback(() => {
-    if (!inputValue.trim() || isTyping) return;
-    const msg = funnyMessages[funnyIndexRef.current % funnyMessages.length];
-    funnyIndexRef.current += 1;
-    setFunnyReply(msg);
-    setDisplayedReply("");
-    setIsTyping(true);
-    setInputValue("");
-  }, [inputValue, isTyping]);
-
-  // typewriter effect
-  useEffect(() => {
-    if (!funnyReply || !isTyping) return;
-    let i = 0;
-    const interval = setInterval(() => {
-      i++;
-      setDisplayedReply(funnyReply.slice(0, i));
-      if (i >= funnyReply.length) {
-        clearInterval(interval);
-        setIsTyping(false);
-      }
-    }, 30);
-    return () => clearInterval(interval);
-  }, [funnyReply, isTyping]);
-
-  useEffect(() => {
-    if (!loading) return;
-    const timer = setTimeout(() => setLoading(false), 1400);
-    return () => clearTimeout(timer);
-  }, [loading]);
-
-  const Icon = siteIconMap[active];
+const FeedbackMessage = ({
+  state,
+  isComplete,
+}: {
+  state: FeedbackState;
+  isComplete: boolean;
+}) => {
+  if (isComplete) return null;
+  if (state === "idle") return null;
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-16 lg:py-20">
-      <p className="text-sm text-[#666fdf] font-semibold tracking-widest uppercase text-center">
-        Interactive Demo
-      </p>
-      <h2 className="text-3xl lg:text-4xl text-center mt-3 [text-shadow:2px_2px_2px_black]">
-        See Context Packs in Action
-      </h2>
-      <p className="text-[#939db8] text-center mt-4 max-w-xl mx-auto">
-        Select a website and see the prompts Merlin would suggest.
-      </p>
+    <div
+      className={`mt-3 flex items-center gap-2 text-sm font-medium transition-all duration-200 ${
+        state === "correct" ? "text-emerald-600" : "text-rose-500"
+      }`}
+    >
+      <span
+        className={`flex h-5 w-5 items-center justify-center rounded-full text-xs text-white ${
+          state === "correct" ? "bg-emerald-500" : "bg-rose-400"
+        }`}
+      >
+        {state === "correct" ? "✓" : "✕"}
+      </span>
+      {state === "correct" ? "Correct! Moving on…" : "Not the right element — try again."}
+    </div>
+  );
+};
 
-      <div className="mt-14 grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
-        {/* ── left: site picker ─────────────────────────────── */}
-        <div className="flex flex-col gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wider text-[#939db8] mb-2">
-            Choose a website
+const StepInstruction = ({
+  step,
+  feedback,
+  isComplete,
+}: {
+  step: TutorialStep | undefined;
+  feedback: FeedbackState;
+  isComplete: boolean;
+}) => (
+  <div
+    className={`rounded-xl border px-5 py-4 transition-all duration-300 ${
+      feedback === "wrong"
+        ? "border-rose-200 bg-rose-50"
+        : "border-gray-200 bg-white"
+    }`}
+  >
+    {isComplete ? (
+      <p className="font-semibold text-[#171717]">🎉 Tutorial complete!</p>
+    ) : (
+      <p className="font-medium text-[#171717] leading-snug">
+        {step?.instruction}
+      </p>
+    )}
+    {step && !isComplete && (
+      <p className="mt-1 text-xs text-[#5c5c5c]">{step.hint}</p>
+    )}
+    <FeedbackMessage state={feedback} isComplete={isComplete} />
+  </div>
+);
+
+// ─── Fake UI pieces ───────────────────────────────────────────────────────────
+
+type ClickableProps = {
+  id: string;
+  label: string;
+  isTarget: boolean;
+  isCompleted: boolean;
+  onClick: (id: string) => void;
+  locked: boolean;
+  icon?: string;
+  variant?: "sidebar" | "tab" | "toggle";
+  active?: boolean;
+};
+
+const ClickableElement = ({
+  id,
+  label,
+  isTarget,
+  isCompleted,
+  onClick,
+  locked,
+  icon,
+  variant = "sidebar",
+  active = false,
+}: ClickableProps) => {
+  const pulse = isTarget && !isCompleted;
+
+  const baseClasses =
+    "relative cursor-pointer select-none transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-[#da5cc7]";
+
+  const variantClasses: Record<string, string> = {
+    sidebar: `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium w-full text-left ${
+      active
+        ? "bg-[#f3f3f3] text-[#171717]"
+        : "text-[#5c5c5c] hover:bg-[#f9f9f9] hover:text-[#171717]"
+    }`,
+    tab: `px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+      active
+        ? "border-[#171717] text-[#171717]"
+        : "border-transparent text-[#5c5c5c] hover:text-[#171717] hover:border-gray-300"
+    }`,
+    toggle: "flex items-center justify-between rounded-xl border border-gray-200 bg-white px-5 py-4 w-full text-left hover:border-gray-300",
+  };
+
+  return (
+    <button
+      id={id}
+      disabled={locked || isCompleted}
+      onClick={() => onClick(id)}
+      className={`${baseClasses} ${variantClasses[variant]} ${
+        pulse ? "ring-2 ring-[#da5cc7] ring-offset-1 animate-pulse" : ""
+      } ${isCompleted ? "opacity-50" : ""}`}
+    >
+      {variant === "toggle" ? (
+        <>
+          <span className="text-sm font-medium text-[#171717]">
+            {icon} {label}
           </span>
-          {sites.map((site) => {
-            const SiteIcon = siteIconMap[site];
-            const isActive = site === active;
-            return (
-              <button
-                key={site}
-                onClick={() => handleSiteChange(site)}
-                className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 cursor-pointer border ${
-                  isActive
-                    ? "border-[#666fdf]/50 bg-[#666fdf]/10 text-[#e2e5ec]"
-                    : "border-[#c9d3ee]/8 bg-white/3 text-[#939db8] hover:bg-white/6 hover:text-[#e2e5ec]"
-                }`}
-              >
-                <span style={{ color: isActive ? siteAccent[site] : undefined }}>
-                  <SiteIcon />
-                </span>
-                {site}
-              </button>
-            );
-          })}
-        </div>
+          <span
+            className={`flex h-5 w-9 items-center rounded-full px-0.5 transition-colors duration-300 ${
+              isCompleted ? "bg-[#da5cc7]" : "bg-gray-200"
+            }`}
+          >
+            <span
+              className={`h-4 w-4 rounded-full bg-white shadow transition-transform duration-300 ${
+                isCompleted ? "translate-x-4" : "translate-x-0"
+              }`}
+            />
+          </span>
+        </>
+      ) : (
+        <>
+          {icon && <span>{icon}</span>}
+          <span>{label}</span>
+          {isCompleted && <span className="ml-auto text-[#da5cc7]">✓</span>}
+        </>
+      )}
+    </button>
+  );
+};
 
-        {/* ── right: fake merlin sidebar ────────────────────── */}
-        <div className="rounded-2xl border border-[#c9d3ee]/10 bg-white/3 backdrop-blur-md overflow-hidden flex flex-col">
-          {/* sidebar header */}
-          <div className="flex items-center justify-between border-b border-[#c9d3ee]/8 px-5 py-3.5">
-            <div className="flex items-center gap-2">
-              <div className="h-6 w-6 rounded-md bg-[#666fdf] flex items-center justify-center text-white">
-                <SparkleIcon />
-              </div>
-              <span className="text-sm font-semibold text-[#e2e5ec]">
-                Merlin AI
-              </span>
-            </div>
-            <div className="flex gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-[#c9d3ee]/15" />
-              <span className="h-2.5 w-2.5 rounded-full bg-[#c9d3ee]/15" />
-              <span className="h-2.5 w-2.5 rounded-full bg-[#c9d3ee]/15" />
-            </div>
-          </div>
+const Sidebar = ({
+  currentTarget,
+  completedTargets,
+  onElementClick,
+  locked,
+  activeItem,
+}: {
+  currentTarget: string;
+  completedTargets: string[];
+  onElementClick: (id: string) => void;
+  locked: boolean;
+  activeItem: string;
+}) => {
+  const items = [
+    { id: "sidebar-dashboard", label: "Dashboard", icon: "⬛" },
+    { id: "sidebar-settings", label: "Settings", icon: "⚙️" },
+    { id: "sidebar-analytics", label: "Analytics", icon: "📊" },
+  ];
 
-          {/* content area */}
-          <div className="flex-1 px-5 py-4 flex flex-col min-h-105">
-            <AnimatePresence mode="wait">
-              {loading ? (
-                /* ── loading state ───────────────────────── */
-                <motion.div
-                  key="loading"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="flex-1 flex flex-col items-center justify-center gap-4"
-                >
-                  <motion.div
-                    animate={{ opacity: [0.4, 1, 0.4] }}
-                    transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
-                    className="flex flex-col items-center gap-3 text-center"
-                  >
-                    <div className="flex items-center gap-2 text-sm text-[#939db8]">
-                      Detected Website:{" "}
-                      <span
-                        className="inline-block"
-                        style={{ color: siteAccent[active] }}
-                      >
-                        <Icon />
-                      </span>
-                      <span className="font-semibold text-[#e2e5ec]">
-                        {active}
-                      </span>
-                    </div>
-                    <span className="text-xs text-[#666fdf] font-medium">
-                      Loading Context Pack…
-                    </span>
-                  </motion.div>
-                </motion.div>
-              ) : (
-                /* ── prompts state ───────────────────────── */
-                <motion.div
-                  key={active}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.25 }}
-                  className="flex flex-col flex-1"
-                >
-                  <div className="flex items-center gap-2 mb-4">
-                    <span style={{ color: siteAccent[active] }}>
-                      <Icon />
-                    </span>
-                    <span className="text-xs font-semibold uppercase tracking-wider text-[#939db8]">
-                      Context Pack: {active}
-                    </span>
-                  </div>
+  return (
+    <nav className="flex w-44 shrink-0 flex-col gap-1 border-r border-gray-100 py-4 pr-3">
+      <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-gray-400">
+        Menu
+      </p>
+      {items.map((item) => (
+        <ClickableElement
+          key={item.id}
+          id={item.id}
+          label={item.label}
+          icon={item.icon}
+          isTarget={item.id === currentTarget}
+          isCompleted={completedTargets.includes(item.id)}
+          onClick={onElementClick}
+          locked={locked}
+          variant="sidebar"
+          active={activeItem === item.id}
+        />
+      ))}
+    </nav>
+  );
+};
 
-                  <p className="text-[11px] uppercase tracking-wider text-[#939db8]/70 font-semibold mb-2">
-                    Suggested Prompts
-                  </p>
+const TopTabs = ({
+  currentTarget,
+  completedTargets,
+  onElementClick,
+  locked,
+  activeTab,
+}: {
+  currentTarget: string;
+  completedTargets: string[];
+  onElementClick: (id: string) => void;
+  locked: boolean;
+  activeTab: string;
+}) => {
+  const tabs = [
+    { id: "tab-overview", label: "Overview" },
+    { id: "tab-billing", label: "Billing" },
+    { id: "tab-users", label: "Users" },
+  ];
 
-                  <div className="space-y-2 flex-1">
-                    {sitePrompts[active].map((prompt, i) => (
-                      <motion.div
-                        key={prompt}
-                        initial={{ opacity: 0, x: 12 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.07, duration: 0.25 }}
-                        className="flex items-start justify-between gap-3 rounded-xl border border-[#c9d3ee]/6 bg-white/2 px-4 py-3 text-[13px] text-[#c9d3ee]/90 transition-colors hover:border-[#c9d3ee]/12 hover:bg-white/4"
-                      >
-                        <span className="leading-relaxed">{prompt}</span>
-                        <button
-                          onClick={() => setInputValue(prompt)}
-                          className="shrink-0 rounded-lg border border-[#666fdf]/30 bg-[#666fdf]/10 px-2.5 py-1 text-[11px] font-semibold text-[#666fdf] transition-colors hover:bg-[#666fdf]/20 cursor-pointer"
-                        >
-                          Use
-                        </button>
-                      </motion.div>
-                    ))}
-                  </div>
+  return (
+    <div className="flex gap-0 border-b border-gray-100">
+      {tabs.map((tab) => (
+        <ClickableElement
+          key={tab.id}
+          id={tab.id}
+          label={tab.label}
+          isTarget={tab.id === currentTarget}
+          isCompleted={completedTargets.includes(tab.id)}
+          onClick={onElementClick}
+          locked={locked}
+          variant="tab"
+          active={activeTab === tab.id}
+        />
+      ))}
+    </div>
+  );
+};
 
-                  {/* funny AI reply bubble */}
-                  <AnimatePresence>
-                    {displayedReply && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0 }}
-                        className="mt-3 rounded-xl border border-[#666fdf]/20 bg-[#666fdf]/5 px-4 py-3"
-                      >
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <div className="h-5 w-5 rounded-md bg-[#666fdf] flex items-center justify-center text-white">
-                            <SparkleIcon />
-                          </div>
-                          <span className="text-[11px] font-semibold text-[#939db8]">Merlin AI</span>
-                        </div>
-                        <p className="text-[13px] text-[#c9d3ee] leading-relaxed">
-                          {displayedReply}
-                          {isTyping && <span className="inline-block w-1.5 h-4 bg-[#666fdf] ml-0.5 animate-pulse align-middle" />}
-                        </p>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+const ContentArea = ({
+  currentTarget,
+  completedTargets,
+  onElementClick,
+  locked,
+}: {
+  currentTarget: string;
+  completedTargets: string[];
+  onElementClick: (id: string) => void;
+  locked: boolean;
+}) => (
+  <div className="flex flex-1 flex-col gap-3 p-5">
+    {/* Placeholder rows */}
+    <div className="h-2.5 w-3/4 rounded-full bg-gray-100" />
+    <div className="h-2.5 w-1/2 rounded-full bg-gray-100" />
+    <div className="mt-2 h-2.5 w-2/3 rounded-full bg-gray-100" />
 
-          {/* chat input bar */}
-          <div className="border-t border-[#c9d3ee]/8 px-4 py-3">
-            <div className="flex items-center gap-2 rounded-xl border border-[#c9d3ee]/10 bg-white/3 px-4 py-2.5">
-              <input
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") handleSend(); }}
-                placeholder="Ask Merlin anything…"
-                className="flex-1 bg-transparent text-sm text-[#e2e5ec] placeholder-[#939db8]/50 outline-none"
-              />
-              <button onClick={handleSend} className="text-[#666fdf] hover:text-[#8b92f0] transition-colors cursor-pointer">
-                <SendIcon />
-              </button>
-            </div>
-          </div>
-        </div>
+    {/* Toggle */}
+    <div className="mt-4">
+      <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-gray-400">
+        Preferences
+      </p>
+      <ClickableElement
+        id="toggle-notifications"
+        label="Enable Notifications"
+        icon="🔔"
+        isTarget={"toggle-notifications" === currentTarget}
+        isCompleted={completedTargets.includes("toggle-notifications")}
+        onClick={onElementClick}
+        locked={locked}
+        variant="toggle"
+      />
+    </div>
+
+    {/* More placeholder rows */}
+    <div className="mt-4 h-2.5 w-5/6 rounded-full bg-gray-100" />
+    <div className="h-2.5 w-1/3 rounded-full bg-gray-100" />
+  </div>
+);
+
+const FakeProductUI = ({
+  currentTarget,
+  completedTargets,
+  onElementClick,
+  locked,
+  activeSection,
+  activeTab,
+}: {
+  currentTarget: string;
+  completedTargets: string[];
+  onElementClick: (id: string) => void;
+  locked: boolean;
+  activeSection: string;
+  activeTab: string;
+}) => (
+  <div className="overflow-hidden rounded-xl border border-gray-200 bg-[#fafafa]">
+    {/* Fake browser chrome */}
+    <div className="flex items-center gap-1.5 border-b border-gray-100 bg-white px-4 py-2.5">
+      <span className="h-2.5 w-2.5 rounded-full bg-rose-300" />
+      <span className="h-2.5 w-2.5 rounded-full bg-amber-300" />
+      <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
+      <div className="ml-3 flex-1 rounded-md bg-gray-100 px-3 py-1 text-xs text-gray-400">
+        app.example.com/settings
       </div>
     </div>
+
+    {/* App body */}
+    <div className="flex" style={{ minHeight: 220 }}>
+      <Sidebar
+        currentTarget={currentTarget}
+        completedTargets={completedTargets}
+        onElementClick={onElementClick}
+        locked={locked}
+        activeItem={activeSection}
+      />
+
+      <div className="flex flex-1 flex-col">
+        <TopTabs
+          currentTarget={currentTarget}
+          completedTargets={completedTargets}
+          onElementClick={onElementClick}
+          locked={locked}
+          activeTab={activeTab}
+        />
+        <ContentArea
+          currentTarget={currentTarget}
+          completedTargets={completedTargets}
+          onElementClick={onElementClick}
+          locked={locked}
+        />
+      </div>
+    </div>
+  </div>
+);
+
+// ─── Root component ───────────────────────────────────────────────────────────
+
+export const Demo = () => {
+  const [currentStep, setCurrentStep] = useState(1);
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [completedTargets, setCompletedTargets] = useState<string[]>([]);
+  const [feedback, setFeedback] = useState<FeedbackState>("idle");
+  const [locked, setLocked] = useState(false);
+
+  // Derived UI state to make the fake product feel "alive"
+  const [activeSection, setActiveSection] = useState("sidebar-dashboard");
+  const [activeTab, setActiveTab] = useState("tab-overview");
+
+  const isComplete = completedSteps.length === TOTAL_STEPS;
+  const activeStepData = TUTORIAL_STEPS.find((s) => s.id === currentStep);
+
+  const reset = useCallback(() => {
+    setCurrentStep(1);
+    setCompletedSteps([]);
+    setCompletedTargets([]);
+    setFeedback("idle");
+    setLocked(false);
+    setActiveSection("sidebar-dashboard");
+    setActiveTab("tab-overview");
+  }, []);
+
+  const handleElementClick = useCallback(
+    (clickedId: string) => {
+      if (locked || isComplete) return;
+
+      // Brief interaction lock to prevent rapid clicking
+      setLocked(true);
+      setTimeout(() => setLocked(false), 300);
+
+      const target = activeStepData?.targetId;
+
+      if (clickedId === target) {
+        setFeedback("correct");
+
+        // Reflect click in the fake UI
+        if (clickedId.startsWith("sidebar-")) setActiveSection(clickedId);
+        if (clickedId.startsWith("tab-")) setActiveTab(clickedId);
+
+        setCompletedTargets((prev) => [...prev, clickedId]);
+
+        setTimeout(() => {
+          setCompletedSteps((prev) => [...prev, currentStep]);
+          setFeedback("idle");
+          if (currentStep < TOTAL_STEPS) {
+            setCurrentStep((prev) => prev + 1);
+          }
+        }, 800);
+      } else {
+        setFeedback("wrong");
+        setTimeout(() => setFeedback("idle"), 1200);
+      }
+    },
+    [locked, isComplete, activeStepData, currentStep]
+  );
+
+  // Clear feedback when step advances
+  useEffect(() => {
+    setFeedback("idle");
+  }, [currentStep]);
+
+  const currentTarget = isComplete ? "" : (activeStepData?.targetId ?? "");
+
+  return (
+    <section id="demo" className="w-full">
+      <div className="px-4 md:px-10 lg:px-40 pt-16 lg:pt-20 pb-8">
+        <p className="text-sm text-[#da5cc7] font-semibold tracking-widest uppercase">
+          ✦ Try It Yourself
+        </p>
+
+        <h2 className="text-3xl lg:text-5xl mt-3 font-nohemi text-[#171717] leading-tight max-w-3xl">
+          Interactive Demo
+        </h2>
+
+        <p className="text-[#5c5c5c] mt-4 hidden lg:block text-lg max-w-xl leading-relaxed">
+          Follow the instructions below and click the correct element to
+          complete each step.
+        </p>
+      </div>
+
+      <div className="px-4 md:px-10 lg:px-40 pb-24">
+        <div className="relative">
+          {/* Background glow — mirrors Solution.tsx */}
+          <div className="pointer-events-none absolute left-1/2 top-1/2 h-125 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#f8f8f8] blur-3xl opacity-95" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(248,248,248,0.98)_0%,rgba(248,248,248,0.86)_18%,rgba(248,248,248,0.56)_38%,rgba(248,248,248,0.16)_62%,rgba(248,248,248,0)_82%)]" />
+
+          <article className="relative rounded-2xl border bg-white border-gray-200 overflow-hidden">
+            <div className="px-6 lg:px-8 py-6 lg:py-7 border-b border-gray-100 flex items-start justify-between gap-4 flex-wrap">
+              <div className="flex-1 min-w-0">
+                <StepProgress
+                  current={isComplete ? TOTAL_STEPS : currentStep}
+                  total={TOTAL_STEPS}
+                  completed={completedSteps}
+                />
+                <div className="mt-3">
+                  <StepInstruction
+                    step={activeStepData}
+                    feedback={feedback}
+                    isComplete={isComplete}
+                  />
+                </div>
+              </div>
+
+              {isComplete && (
+                <button
+                  onClick={reset}
+                  className="shrink-0 rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-[#5c5c5c] transition hover:border-[#da5cc7] hover:text-[#da5cc7]"
+                >
+                  ↺ Restart
+                </button>
+              )}
+            </div>
+
+            <div className="px-6 lg:px-8 py-6 lg:py-7">
+              <FakeProductUI
+                currentTarget={currentTarget}
+                completedTargets={completedTargets}
+                onElementClick={handleElementClick}
+                locked={locked}
+                activeSection={activeSection}
+                activeTab={activeTab}
+              />
+            </div>
+          </article>
+        </div>
+
+        <div className="h-16 lg:h-20" />
+      </div>
+    </section>
   );
 };

@@ -1,3 +1,4 @@
+import { Demo } from "./homepage/Demo";
 import { Header } from "./homepage/Header";
 import { Hero } from "./homepage/Hero";
 import { Problem } from "./homepage/Problem";
@@ -22,6 +23,7 @@ export default function Home() {
       </div>
       <Problem/>
       <Solution/>
+      <Demo/>
     </div>
   );
 }
