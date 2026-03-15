@@ -1,12 +1,15 @@
+import { CTA } from "./homepage/CTA";
 import { Demo } from "./homepage/Demo";
+import { Footer } from "./homepage/Footer";
 import { Header } from "./homepage/Header";
 import { Hero } from "./homepage/Hero";
+import { HowItWorks } from "./homepage/HowItWorks";
 import { Problem } from "./homepage/Problem";
 import { Solution } from "./homepage/Solution";
 
 export default function Home() {
   return (
-    <div>
+  <div>
       <Header />
       <div className="relative overflow-clip">
         <Hero />
@@ -21,9 +24,12 @@ export default function Home() {
           className="hidden lg:block absolute -top-[2%] -right-[28%] w-250 rounded-bl-2xl pointer-events-none -z-10"
         />
       </div>
-      <Problem/>
-      <Solution/>
-      <Demo/>
+      <div className="py-4 lg:py-8"><Problem/></div>
+      <div className="py-4 lg:py-8"><Solution/></div>
+      <div className="py-4 lg:py-8"><Demo/></div>
+      <div className="py-4 lg:py-8"><HowItWorks/></div>
+      <CTA/>
+      <Footer/>
     </div>
   );
 }

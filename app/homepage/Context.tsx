@@ -160,7 +160,7 @@ export const Context = () => {
           return (
             <div
               key={pack.site}
-              className="group rounded-2xl border border-[#c9d3ee]/10 bg-white/3 backdrop-blur-md p-7 transition-all duration-300 hover:border-[#666fdf]/40 hover:bg-white/6 flex flex-col"
+              className="group rounded-lg border border-[#c9d3ee]/10 bg-white/3 backdrop-blur-md p-7 transition-all duration-300 hover:border-[#666fdf]/40 hover:bg-white/6 flex flex-col"
             >
               <div className="flex items-center gap-3">
                 <div

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const navLinks = [
@@ -31,86 +31,117 @@ const GitHubIcon = () => (
 
 export const Header = () => {
   const [open, setOpen] = useState(false);
+  const [scrolledPastVideo, setScrolledPastVideo] = useState(false);
 
   useEffect(() => {
-    document.body.style.overflow = open ? "hidden" : "";
-    return () => { document.body.style.overflow = ""; };
+    const onScroll = () => {
+      const video = document.querySelector("[data-video-placeholder]") as HTMLElement | null;
+      if (!video) return;
+      const rect = video.getBoundingClientRect();
+      const midpoint = rect.top + rect.height / 2;
+      setScrolledPastVideo(midpoint < 0);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Close menu on escape
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    if (open) window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
   return (
-    <>
-      <div className="sticky z-50 bg-white top-0 border-b border-gray-200">
-        <div className="flex justify-between py-3 md:py-4 items-center text-[#171717] text-sm px-4 md:px-10 lg:px-40">
-          <div className="flex flex-col ">
+    <header className="sticky top-0 z-9999 bg-white border-b border-gray-200">
+      <div className="flex justify-between py-3 md:py-4 items-center text-[#171717] text-sm px-4 md:px-10 lg:px-40">
+        <div className="flex flex-col">
           <h1 className="font-nohemi tracking-wide text-2xl">Clueso </h1>
           <span className="-mt-2 ml-0.5">Interactive Mode</span>
-          </div>
-
-          {/* desktop nav */}
-          <ul className="hidden lg:flex gap-12">
-            {navLinks.map((l) => (
-              <li key={l.label}>
-                <a href={l.href} className="hover:text-[#171717] text-[#171717]/60 transition-colors font-medium">{l.label}</a>
-              </li>
-            ))}
-          </ul>
-
-          <a
-            href="https://github.com/Harsh-uu/Clueso-interactive-mode"
-            target="_blank"
-            rel="noreferrer"
-            className="hidden lg:inline-flex h-9 w-9 items-center justify-center rounded-lg text-white bg-black border border-[#171717]/40 hover:bg-[#171717]/60"
-            aria-label="Open GitHub repository"
-          >
-            <GitHubIcon />
-          </a>
-
-          <button
-            onClick={() => setOpen((prev) => !prev)}
-            className="lg:hidden text-[#c9d3ee] cursor-pointer hover:bg-[#f7f7f7] border border-gray-200 rounded-sm active:bg-[#ebebeb] p-1 active:border-gray-400"
-            aria-label={open ? "Close menu" : "Open menu"}
-          >
-            {open ? <CloseIcon /> : <MenuIcon />}
-          </button>
         </div>
-        <AnimatePresence>
-          {open && (
+
+        {/* Desktop nav */}
+        <ul className="hidden lg:flex gap-12">
+          {navLinks.map((l) => (
+            <li key={l.label}>
+              <a href={l.href} className="hover:text-[#171717] text-[#171717]/60 transition-colors font-medium">{l.label}</a>
+            </li>
+          ))}
+        </ul>
+
+        <a
+          href="https://github.com/Harsh-uu/Clueso-interactive-mode"
+          target="_blank"
+          rel="noreferrer"
+          className={`hidden lg:inline-flex h-9 w-9 items-center justify-center rounded-lg text-white border transition-colors duration-300 ${
+            scrolledPastVideo
+              ? "bg-[#d462c5] border-[#d462c5] hover:bg-[#f770e3]"
+              : "bg-black border-[#171717]/40 hover:bg-[#171717]/60"
+          }`}
+          aria-label="Open GitHub repository"
+        >
+          <GitHubIcon />
+        </a>
+
+        <button
+          onClick={() => setOpen((prev) => !prev)}
+          className="lg:hidden text-[#c9d3ee] cursor-pointer hover:bg-[#f7f7f7] border border-gray-200 rounded-sm active:bg-[#ebebeb] p-1 active:border-gray-400"
+          aria-label={open ? "Close menu" : "Open menu"}
+        >
+          {open ? <CloseIcon /> : <MenuIcon />}
+        </button>
+      </div>
+
+      {/* Mobile menu — lives inside the header, no portal */}
+      <AnimatePresence>
+        {open && (
+          <>
             <motion.div
+              className="lg:hidden fixed inset-0 top-0"
+              onClick={() => setOpen(false)}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            />
+            <motion.div
+              className="lg:hidden bg-white border-t border-gray-100 h-[calc(100dvh-57px)] overflow-y-auto origin-top"
               initial={{ scaleY: 0, opacity: 0 }}
               animate={{ scaleY: 1, opacity: 1 }}
               exit={{ scaleY: 0, opacity: 0 }}
-              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-              className="lg:hidden absolute top-full bg-white origin-top min-h-screen w-screen left-1/2 -translate-x-1/2"
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
             >
-              <ul className="flex flex-col px-4 pt-3">
+              <ul className="flex flex-col px-4 pt-1 pb-2">
                 {navLinks.map((l) => (
-                  <li key={l.label} className="border-b border-[#e2e5ec]/8">
+                  <li key={l.label} className="border-b border-gray-100 last:border-none">
                     <a
                       href={l.href}
                       onClick={() => setOpen(false)}
-                      className="block px-3 py-4 text-md text-[#171717] hover:bg-white/5 hover:text-[#e2e5ec] transition-colors font-medium"
+                      className="block px-3 py-4 text-[#171717] transition-colors font-medium"
                     >
                       {l.label}
                     </a>
                   </li>
                 ))}
               </ul>
-              <div className="px-4 py-5">
+              <div className="px-7 pb-5">
                 <a
                   href="https://github.com/Harsh-uu/Clueso-interactive-mode"
                   target="_blank"
                   rel="noreferrer"
                   onClick={() => setOpen(false)}
-                  className="mx-auto inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[#171717] text-white border ml-3 border-[#e2e5ec]/20"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[#171717] text-white border border-gray-800"
                   aria-label="Open GitHub repository"
                 >
                   <GitHubIcon />
                 </a>
               </div>
             </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    </>
+          </>
+        )}
+      </AnimatePresence>
+    </header>
   );
 }

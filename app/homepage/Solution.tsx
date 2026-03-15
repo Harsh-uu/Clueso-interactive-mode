@@ -60,7 +60,7 @@ const SolutionCard = ({
 }: {
   solution: SolutionItem;
 }) => (
-  <article className="rounded-2xl border bg-white border-gray-200 overflow-hidden">
+  <article className="rounded-lg border bg-white border-gray-200 overflow-hidden">
     <div className="relative h-48 lg:h-56">
       <div className="absolute inset-0" />
 
@@ -88,7 +88,7 @@ const SolutionCard = ({
 export const Solution = () => {
   return (
     <section id="solution" className="w-full">
-      <div className="px-4 md:px-10 lg:px-40 pt-16 lg:pt-20 pb-8">
+      <div className="px-4 md:px-10 lg:px-40 pb-8">
         <p className="text-sm text-[#da5cc7] font-semibold tracking-widest uppercase">
           ✦ The Solution
         </p>
@@ -98,12 +98,11 @@ export const Solution = () => {
         </h2>
 
         <p className="text-[#5c5c5c] mt-4 hidden lg:block text-lg max-w-xl leading-relaxed">
-          Turn tutorials into interactive workflows users can click through and
-          practice step by step.
+          Click-through tutorials that teach by doing.
         </p>
       </div>
 
-      <div className="px-4 md:px-10 lg:px-40 pb-24">
+      <div className="px-4 md:px-10 lg:px-40">
         <div className="relative">
           <div className="pointer-events-none absolute left-1/2 top-1/2 h-200 w-lg -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#f8f8f8] blur-3xl opacity-95" />
 

@@ -1,517 +1,522 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { Check, Loader2, Upload, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Types ──────────────────────────────────────────────────────────────────
 
+type DemoStage = "upload" | "processing" | "stepsDetected" | "interactive";
 type FeedbackState = "idle" | "correct" | "wrong";
 
 type TutorialStep = {
   id: number;
-  instruction: string;
+  label: string;
   targetId: string;
-  hint: string;
 };
 
-// ─── Data ─────────────────────────────────────────────────────────────────────
+// ─── Data ───────────────────────────────────────────────────────────────────
 
-const TUTORIAL_STEPS: TutorialStep[] = [
-  {
-    id: 1,
-    instruction: 'Click the "Settings" button in the sidebar.',
-    targetId: "sidebar-settings",
-    hint: "Look for Settings in the left sidebar.",
-  },
-  {
-    id: 2,
-    instruction: 'Click the "Billing" tab in the top navigation.',
-    targetId: "tab-billing",
-    hint: "Find the Billing tab in the top navigation bar.",
-  },
-  {
-    id: 3,
-    instruction: 'Toggle "Enable Notifications" in the content area.',
-    targetId: "toggle-notifications",
-    hint: "Scroll the main content area and find the toggle.",
-  },
+const STEPS: TutorialStep[] = [
+  { id: 1, label: "Open Settings", targetId: "sidebar-settings" },
+  { id: 2, label: "Go to Billing", targetId: "tab-billing" },
+  { id: 3, label: "Enable Notifications", targetId: "toggle-notifications" },
 ];
 
-const TOTAL_STEPS = TUTORIAL_STEPS.length;
+const TOTAL = STEPS.length;
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+const PROCESSING_MSGS = [
+  "Analyzing recording…",
+  "Detecting product actions…",
+  "Mapping tutorial steps…",
+  "Preparing simulation…",
+];
 
-const StepProgress = ({
-  current,
-  total,
-  completed,
-}: {
-  current: number;
-  total: number;
-  completed: number[];
-}) => (
-  <div className="flex items-center gap-3">
-    <span className="text-xs font-semibold tracking-widest uppercase text-[#5c5c5c]">
-      Step {current} of {total}
-    </span>
-    <div className="flex gap-1.5">
-      {Array.from({ length: total }, (_, i) => i + 1).map((step) => (
-        <span
-          key={step}
-          className={`block h-1.5 w-6 rounded-full transition-all duration-300 ${
-            completed.includes(step)
-              ? "bg-[#da5cc7]"
-              : step === current
-              ? "bg-[#171717]"
-              : "bg-gray-200"
-          }`}
-        />
-      ))}
-    </div>
-  </div>
-);
+const DEMO_HEIGHT = 460;
 
-const FeedbackMessage = ({
-  state,
-  isComplete,
-}: {
-  state: FeedbackState;
-  isComplete: boolean;
-}) => {
-  if (isComplete) return null;
-  if (state === "idle") return null;
+// ─── Fake product UI ────────────────────────────────────────────────────────
 
-  return (
-    <div
-      className={`mt-3 flex items-center gap-2 text-sm font-medium transition-all duration-200 ${
-        state === "correct" ? "text-emerald-600" : "text-rose-500"
-      }`}
-    >
-      <span
-        className={`flex h-5 w-5 items-center justify-center rounded-full text-xs text-white ${
-          state === "correct" ? "bg-emerald-500" : "bg-rose-400"
-        }`}
-      >
-        {state === "correct" ? "✓" : "✕"}
-      </span>
-      {state === "correct" ? "Correct! Moving on…" : "Not the right element — try again."}
-    </div>
-  );
-};
-
-const StepInstruction = ({
-  step,
-  feedback,
-  isComplete,
-}: {
-  step: TutorialStep | undefined;
-  feedback: FeedbackState;
-  isComplete: boolean;
-}) => (
-  <div
-    className={`rounded-xl border px-5 py-4 transition-all duration-300 ${
-      feedback === "wrong"
-        ? "border-rose-200 bg-rose-50"
-        : "border-gray-200 bg-white"
-    }`}
-  >
-    {isComplete ? (
-      <p className="font-semibold text-[#171717]">🎉 Tutorial complete!</p>
-    ) : (
-      <p className="font-medium text-[#171717] leading-snug">
-        {step?.instruction}
-      </p>
-    )}
-    {step && !isComplete && (
-      <p className="mt-1 text-xs text-[#5c5c5c]">{step.hint}</p>
-    )}
-    <FeedbackMessage state={feedback} isComplete={isComplete} />
-  </div>
-);
-
-// ─── Fake UI pieces ───────────────────────────────────────────────────────────
-
-type ClickableProps = {
-  id: string;
-  label: string;
-  isTarget: boolean;
-  isCompleted: boolean;
-  onClick: (id: string) => void;
-  locked: boolean;
-  icon?: string;
-  variant?: "sidebar" | "tab" | "toggle";
-  active?: boolean;
-};
-
-const ClickableElement = ({
-  id,
-  label,
-  isTarget,
-  isCompleted,
+const ProductShell = ({
+  target,
+  done,
   onClick,
   locked,
-  icon,
-  variant = "sidebar",
-  active = false,
-}: ClickableProps) => {
-  const pulse = isTarget && !isCompleted;
-
-  const baseClasses =
-    "relative cursor-pointer select-none transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-[#da5cc7]";
-
-  const variantClasses: Record<string, string> = {
-    sidebar: `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium w-full text-left ${
-      active
-        ? "bg-[#f3f3f3] text-[#171717]"
-        : "text-[#5c5c5c] hover:bg-[#f9f9f9] hover:text-[#171717]"
-    }`,
-    tab: `px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-      active
-        ? "border-[#171717] text-[#171717]"
-        : "border-transparent text-[#5c5c5c] hover:text-[#171717] hover:border-gray-300"
-    }`,
-    toggle: "flex items-center justify-between rounded-xl border border-gray-200 bg-white px-5 py-4 w-full text-left hover:border-gray-300",
-  };
-
-  return (
-    <button
-      id={id}
-      disabled={locked || isCompleted}
-      onClick={() => onClick(id)}
-      className={`${baseClasses} ${variantClasses[variant]} ${
-        pulse ? "ring-2 ring-[#da5cc7] ring-offset-1 animate-pulse" : ""
-      } ${isCompleted ? "opacity-50" : ""}`}
-    >
-      {variant === "toggle" ? (
-        <>
-          <span className="text-sm font-medium text-[#171717]">
-            {icon} {label}
-          </span>
-          <span
-            className={`flex h-5 w-9 items-center rounded-full px-0.5 transition-colors duration-300 ${
-              isCompleted ? "bg-[#da5cc7]" : "bg-gray-200"
-            }`}
-          >
-            <span
-              className={`h-4 w-4 rounded-full bg-white shadow transition-transform duration-300 ${
-                isCompleted ? "translate-x-4" : "translate-x-0"
-              }`}
-            />
-          </span>
-        </>
-      ) : (
-        <>
-          {icon && <span>{icon}</span>}
-          <span>{label}</span>
-          {isCompleted && <span className="ml-auto text-[#da5cc7]">✓</span>}
-        </>
-      )}
-    </button>
-  );
-};
-
-const Sidebar = ({
-  currentTarget,
-  completedTargets,
-  onElementClick,
-  locked,
-  activeItem,
+  section,
+  tab,
 }: {
-  currentTarget: string;
-  completedTargets: string[];
-  onElementClick: (id: string) => void;
+  target: string;
+  done: string[];
+  onClick: (id: string) => void;
   locked: boolean;
-  activeItem: string;
+  section: string;
+  tab: string;
 }) => {
-  const items = [
-    { id: "sidebar-dashboard", label: "Dashboard", icon: "⬛" },
-    { id: "sidebar-settings", label: "Settings", icon: "⚙️" },
-    { id: "sidebar-analytics", label: "Analytics", icon: "📊" },
+  const sidebarItems = [
+    { id: "sidebar-dashboard", label: "Dashboard" },
+    { id: "sidebar-settings", label: "Settings" },
+    { id: "sidebar-analytics", label: "Analytics" },
   ];
 
-  return (
-    <nav className="flex w-44 shrink-0 flex-col gap-1 border-r border-gray-100 py-4 pr-3">
-      <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-gray-400">
-        Menu
-      </p>
-      {items.map((item) => (
-        <ClickableElement
-          key={item.id}
-          id={item.id}
-          label={item.label}
-          icon={item.icon}
-          isTarget={item.id === currentTarget}
-          isCompleted={completedTargets.includes(item.id)}
-          onClick={onElementClick}
-          locked={locked}
-          variant="sidebar"
-          active={activeItem === item.id}
-        />
-      ))}
-    </nav>
-  );
-};
-
-const TopTabs = ({
-  currentTarget,
-  completedTargets,
-  onElementClick,
-  locked,
-  activeTab,
-}: {
-  currentTarget: string;
-  completedTargets: string[];
-  onElementClick: (id: string) => void;
-  locked: boolean;
-  activeTab: string;
-}) => {
   const tabs = [
     { id: "tab-overview", label: "Overview" },
     { id: "tab-billing", label: "Billing" },
     { id: "tab-users", label: "Users" },
   ];
 
+  const hit = (id: string) => {
+    if (!locked) onClick(id);
+  };
+
   return (
-    <div className="flex gap-0 border-b border-gray-100">
-      {tabs.map((tab) => (
-        <ClickableElement
-          key={tab.id}
-          id={tab.id}
-          label={tab.label}
-          isTarget={tab.id === currentTarget}
-          isCompleted={completedTargets.includes(tab.id)}
-          onClick={onElementClick}
-          locked={locked}
-          variant="tab"
-          active={activeTab === tab.id}
-        />
-      ))}
+    <div className="flex flex-col h-full rounded-lg border border-gray-200 bg-white overflow-hidden">
+      {/* Browser bar */}
+      <div className="flex items-center gap-1.5 border-b border-gray-100 px-4 py-2">
+        <span className="h-2 w-2 rounded-full bg-[#ff5f57]" />
+        <span className="h-2 w-2 rounded-full bg-[#febc2e]" />
+        <span className="h-2 w-2 rounded-full bg-[#28c840]" />
+        <span className="ml-3 flex-1 rounded bg-gray-50 px-3 py-0.5 text-[11px] text-gray-400 font-mono">
+          app.example.com/settings
+        </span>
+      </div>
+
+      <div className="flex flex-1 min-h-0">
+        {/* Sidebar */}
+        <div className="w-40 shrink-0 border-r border-gray-100 p-3 flex flex-col gap-0.5">
+          <span className="text-[9px] font-semibold uppercase tracking-[0.15em] text-gray-300 px-2.5 mb-1">
+            Menu
+          </span>
+          {sidebarItems.map((item) => {
+            const isTarget = item.id === target && !done.includes(item.id);
+            const isActive = item.id === section;
+            const isDone = done.includes(item.id);
+            return (
+              <button
+                key={item.id}
+                onClick={() => hit(item.id)}
+                disabled={locked || isDone}
+                className={`
+                  text-left text-[13px] px-2.5 py-1.5 rounded transition-all duration-150
+                  ${isTarget ? "ring-1 ring-[#da5cc7]/50 bg-[#fdf2fc]" : ""}
+                  ${isActive && !isTarget ? "bg-gray-50 text-gray-900 font-medium" : ""}
+                  ${!isActive && !isTarget ? "text-gray-500 hover:bg-gray-50 hover:text-gray-700" : ""}
+                  ${isDone ? "opacity-40 cursor-default" : "cursor-pointer"}
+                `}
+              >
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Main area */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Tabs */}
+          <div className="flex border-b border-gray-100">
+            {tabs.map((t) => {
+              const isTarget = t.id === target && !done.includes(t.id);
+              const isActive = t.id === tab;
+              const isDone = done.includes(t.id);
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => hit(t.id)}
+                  disabled={locked || isDone}
+                  className={`
+                    text-[13px] px-4 py-2 border-b-2 transition-all duration-150
+                    ${isTarget ? "ring-1 ring-inset ring-[#da5cc7]/50 bg-[#fdf2fc]" : ""}
+                    ${isActive && !isTarget ? "border-gray-900 text-gray-900 font-medium" : "border-transparent"}
+                    ${!isActive && !isTarget ? "text-gray-400 hover:text-gray-600" : ""}
+                    ${isDone ? "opacity-40 cursor-default" : "cursor-pointer"}
+                  `}
+                >
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 p-5 space-y-3">
+            <div className="h-2 w-3/4 rounded bg-gray-100" />
+            <div className="h-2 w-1/2 rounded bg-gray-100" />
+            <div className="h-2 w-2/3 rounded bg-gray-50" />
+
+            <div className="pt-4">
+              <span className="text-[9px] font-semibold uppercase tracking-[0.15em] text-gray-300">
+                Preferences
+              </span>
+              {(() => {
+                const id = "toggle-notifications";
+                const isTarget = id === target && !done.includes(id);
+                const isDone = done.includes(id);
+                return (
+                  <button
+                    onClick={() => hit(id)}
+                    disabled={locked || isDone}
+                    className={`
+                      mt-2 flex w-full items-center justify-between rounded border px-4 py-3 text-[13px] transition-all duration-150
+                      ${isTarget ? "ring-1 ring-[#da5cc7]/50 bg-[#fdf2fc] border-[#da5cc7]/20" : "border-gray-100 bg-white"}
+                      ${isDone ? "opacity-40 cursor-default" : "cursor-pointer hover:border-gray-200"}
+                    `}
+                  >
+                    <span className="text-gray-700">Enable Notifications</span>
+                    <span
+                      className={`h-5 w-9 rounded-full px-0.5 flex items-center transition-colors duration-200 ${
+                        isDone ? "bg-emerald-400" : "bg-gray-200"
+                      }`}
+                    >
+                      <span
+                        className={`h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                          isDone ? "translate-x-4" : "translate-x-0"
+                        }`}
+                      />
+                    </span>
+                  </button>
+                );
+              })()}
+            </div>
+
+            <div className="pt-3 space-y-2">
+              <div className="h-2 w-5/6 rounded bg-gray-50" />
+              <div className="h-2 w-1/3 rounded bg-gray-50" />
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
 
-const ContentArea = ({
-  currentTarget,
-  completedTargets,
-  onElementClick,
-  locked,
-}: {
-  currentTarget: string;
-  completedTargets: string[];
-  onElementClick: (id: string) => void;
-  locked: boolean;
-}) => (
-  <div className="flex flex-1 flex-col gap-3 p-5">
-    {/* Placeholder rows */}
-    <div className="h-2.5 w-3/4 rounded-full bg-gray-100" />
-    <div className="h-2.5 w-1/2 rounded-full bg-gray-100" />
-    <div className="mt-2 h-2.5 w-2/3 rounded-full bg-gray-100" />
-
-    {/* Toggle */}
-    <div className="mt-4">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-gray-400">
-        Preferences
-      </p>
-      <ClickableElement
-        id="toggle-notifications"
-        label="Enable Notifications"
-        icon="🔔"
-        isTarget={"toggle-notifications" === currentTarget}
-        isCompleted={completedTargets.includes("toggle-notifications")}
-        onClick={onElementClick}
-        locked={locked}
-        variant="toggle"
-      />
-    </div>
-
-    {/* More placeholder rows */}
-    <div className="mt-4 h-2.5 w-5/6 rounded-full bg-gray-100" />
-    <div className="h-2.5 w-1/3 rounded-full bg-gray-100" />
-  </div>
-);
-
-const FakeProductUI = ({
-  currentTarget,
-  completedTargets,
-  onElementClick,
-  locked,
-  activeSection,
-  activeTab,
-}: {
-  currentTarget: string;
-  completedTargets: string[];
-  onElementClick: (id: string) => void;
-  locked: boolean;
-  activeSection: string;
-  activeTab: string;
-}) => (
-  <div className="overflow-hidden rounded-xl border border-gray-200 bg-[#fafafa]">
-    {/* Fake browser chrome */}
-    <div className="flex items-center gap-1.5 border-b border-gray-100 bg-white px-4 py-2.5">
-      <span className="h-2.5 w-2.5 rounded-full bg-rose-300" />
-      <span className="h-2.5 w-2.5 rounded-full bg-amber-300" />
-      <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
-      <div className="ml-3 flex-1 rounded-md bg-gray-100 px-3 py-1 text-xs text-gray-400">
-        app.example.com/settings
-      </div>
-    </div>
-
-    {/* App body */}
-    <div className="flex" style={{ minHeight: 220 }}>
-      <Sidebar
-        currentTarget={currentTarget}
-        completedTargets={completedTargets}
-        onElementClick={onElementClick}
-        locked={locked}
-        activeItem={activeSection}
-      />
-
-      <div className="flex flex-1 flex-col">
-        <TopTabs
-          currentTarget={currentTarget}
-          completedTargets={completedTargets}
-          onElementClick={onElementClick}
-          locked={locked}
-          activeTab={activeTab}
-        />
-        <ContentArea
-          currentTarget={currentTarget}
-          completedTargets={completedTargets}
-          onElementClick={onElementClick}
-          locked={locked}
-        />
-      </div>
-    </div>
-  </div>
-);
-
-// ─── Root component ───────────────────────────────────────────────────────────
+// ─── Root component ─────────────────────────────────────────────────────────
 
 export const Demo = () => {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
-  const [completedTargets, setCompletedTargets] = useState<string[]>([]);
+  const [stage, setStage] = useState<DemoStage>("upload");
+  const [msgIdx, setMsgIdx] = useState(0);
+  const [revealed, setRevealed] = useState(0);
+
+  const [step, setStep] = useState(1);
+  const [doneSteps, setDoneSteps] = useState<number[]>([]);
+  const [doneTargets, setDoneTargets] = useState<string[]>([]);
   const [feedback, setFeedback] = useState<FeedbackState>("idle");
   const [locked, setLocked] = useState(false);
 
-  // Derived UI state to make the fake product feel "alive"
-  const [activeSection, setActiveSection] = useState("sidebar-dashboard");
-  const [activeTab, setActiveTab] = useState("tab-overview");
+  const [section, setSection] = useState("sidebar-dashboard");
+  const [tab, setTab] = useState("tab-overview");
 
-  const isComplete = completedSteps.length === TOTAL_STEPS;
-  const activeStepData = TUTORIAL_STEPS.find((s) => s.id === currentStep);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const isComplete = doneSteps.length === TOTAL;
+  const activeStep = STEPS.find((s) => s.id === step);
+  const target = isComplete ? "" : (activeStep?.targetId ?? "");
+
+  // ── Handlers ──────────────────────────────────────────────────────────
 
   const reset = useCallback(() => {
-    setCurrentStep(1);
-    setCompletedSteps([]);
-    setCompletedTargets([]);
+    setStage("upload");
+    setMsgIdx(0);
+    setRevealed(0);
+    setStep(1);
+    setDoneSteps([]);
+    setDoneTargets([]);
     setFeedback("idle");
     setLocked(false);
-    setActiveSection("sidebar-dashboard");
-    setActiveTab("tab-overview");
+    setSection("sidebar-dashboard");
+    setTab("tab-overview");
   }, []);
 
-  const handleElementClick = useCallback(
-    (clickedId: string) => {
+  const handleClick = useCallback(
+    (id: string) => {
       if (locked || isComplete) return;
 
-      // Brief interaction lock to prevent rapid clicking
       setLocked(true);
       setTimeout(() => setLocked(false), 300);
 
-      const target = activeStepData?.targetId;
-
-      if (clickedId === target) {
+      if (id === activeStep?.targetId) {
         setFeedback("correct");
-
-        // Reflect click in the fake UI
-        if (clickedId.startsWith("sidebar-")) setActiveSection(clickedId);
-        if (clickedId.startsWith("tab-")) setActiveTab(clickedId);
-
-        setCompletedTargets((prev) => [...prev, clickedId]);
+        if (id.startsWith("sidebar-")) setSection(id);
+        if (id.startsWith("tab-")) setTab(id);
+        setDoneTargets((p) => [...p, id]);
 
         setTimeout(() => {
-          setCompletedSteps((prev) => [...prev, currentStep]);
+          setDoneSteps((p) => [...p, step]);
           setFeedback("idle");
-          if (currentStep < TOTAL_STEPS) {
-            setCurrentStep((prev) => prev + 1);
-          }
-        }, 800);
+          if (step < TOTAL) setStep((p) => p + 1);
+        }, 700);
       } else {
         setFeedback("wrong");
-        setTimeout(() => setFeedback("idle"), 1200);
+        setTimeout(() => setFeedback("idle"), 1000);
       }
     },
-    [locked, isComplete, activeStepData, currentStep]
+    [locked, isComplete, activeStep, step]
   );
 
-  // Clear feedback when step advances
+  // ── Timers ────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (stage !== "processing") return;
+    let t: ReturnType<typeof setTimeout>;
+    let i = 0;
+    const tick = () => {
+      if (i < PROCESSING_MSGS.length - 1) {
+        i++;
+        setMsgIdx(i);
+        t = setTimeout(tick, 800);
+      } else {
+        t = setTimeout(() => setStage("stepsDetected"), 800);
+      }
+    };
+    t = setTimeout(tick, 800);
+    return () => clearTimeout(t);
+  }, [stage]);
+
+  useEffect(() => {
+    if (stage !== "stepsDetected") return;
+    setRevealed(0);
+    let n = 0;
+    const t = setInterval(() => {
+      n++;
+      setRevealed(n);
+      if (n >= TOTAL) clearInterval(t);
+    }, 500);
+    return () => clearInterval(t);
+  }, [stage]);
+
   useEffect(() => {
     setFeedback("idle");
-  }, [currentStep]);
+  }, [step]);
 
-  const currentTarget = isComplete ? "" : (activeStepData?.targetId ?? "");
+  // ── Render ────────────────────────────────────────────────────────────
 
   return (
     <section id="demo" className="w-full">
-      <div className="px-4 md:px-10 lg:px-40 pt-16 lg:pt-20 pb-8">
+      {/* Header */}
+      <div className="px-4 md:px-10 lg:px-40 pb-8">
         <p className="text-sm text-[#da5cc7] font-semibold tracking-widest uppercase">
           ✦ Try It Yourself
         </p>
 
         <h2 className="text-3xl lg:text-5xl mt-3 font-nohemi text-[#171717] leading-tight max-w-3xl">
-          Interactive Demo
+          See it in action
         </h2>
 
         <p className="text-[#5c5c5c] mt-4 hidden lg:block text-lg max-w-xl leading-relaxed">
-          Follow the instructions below and click the correct element to
-          complete each step.
+          Upload, process, and walk through it yourself.
         </p>
       </div>
 
-      <div className="px-4 md:px-10 lg:px-40 pb-24">
+      {/* Demo card */}
+      <div className="px-4 md:px-10 lg:px-40">
         <div className="relative">
-          {/* Background glow — mirrors Solution.tsx */}
           <div className="pointer-events-none absolute left-1/2 top-1/2 h-125 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#f8f8f8] blur-3xl opacity-95" />
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(248,248,248,0.98)_0%,rgba(248,248,248,0.86)_18%,rgba(248,248,248,0.56)_38%,rgba(248,248,248,0.16)_62%,rgba(248,248,248,0)_82%)]" />
 
-          <article className="relative rounded-2xl border bg-white border-gray-200 overflow-hidden">
-            <div className="px-6 lg:px-8 py-6 lg:py-7 border-b border-gray-100 flex items-start justify-between gap-4 flex-wrap">
-              <div className="flex-1 min-w-0">
-                <StepProgress
-                  current={isComplete ? TOTAL_STEPS : currentStep}
-                  total={TOTAL_STEPS}
-                  completed={completedSteps}
-                />
-                <div className="mt-3">
-                  <StepInstruction
-                    step={activeStepData}
-                    feedback={feedback}
-                    isComplete={isComplete}
-                  />
+          <div
+            ref={containerRef}
+            className="relative rounded-lg border border-gray-200 bg-white overflow-hidden"
+            style={{ minHeight: DEMO_HEIGHT }}
+          >
+            {/* ── Upload ──────────────────────────────────────────── */}
+            {stage === "upload" && (
+              <div
+                className="flex flex-col items-center justify-center gap-6 px-8"
+                style={{ minHeight: DEMO_HEIGHT }}
+              >
+                <div className="w-72 border border-dashed border-gray-200 rounded-xl p-10 flex flex-col items-center gap-3">
+                  <Upload className="h-6 w-6 text-gray-300" strokeWidth={1.5} />
+                  <div className="text-center">
+                    <p className="text-sm text-gray-500">product-walkthrough.mp4</p>
+                    <p className="text-[11px] text-gray-300 mt-0.5">4.2 MB</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setMsgIdx(0);
+                    setStage("processing");
+                  }}
+                  className="rounded-lg bg-gray-900 px-5 py-2 text-sm font-medium text-white hover:bg-gray-800 transition-colors"
+                >
+                  Upload Recording
+                </button>
+              </div>
+            )}
+
+            {/* ── Processing ──────────────────────────────────────── */}
+            {stage === "processing" && (
+              <div
+                className="flex flex-col items-center justify-center px-8"
+                style={{ minHeight: DEMO_HEIGHT }}
+              >
+                <div className="w-full max-w-xs space-y-4">
+                  {PROCESSING_MSGS.map((msg, i) => (
+                    <div
+                      key={msg}
+                      className={`flex items-center gap-3 transition-all duration-300 ${
+                        i > msgIdx ? "opacity-0 translate-y-1" : "opacity-100 translate-y-0"
+                      }`}
+                    >
+                      {i < msgIdx ? (
+                        <Check className="h-4 w-4 text-emerald-400 shrink-0" strokeWidth={2.5} />
+                      ) : (
+                        <Loader2 className="h-4 w-4 text-gray-300 animate-spin shrink-0" strokeWidth={2} />
+                      )}
+                      <span className={`text-sm ${i <= msgIdx ? "text-gray-600" : "text-gray-300"}`}>
+                        {msg}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
+            )}
 
-              {isComplete && (
+            {/* ── Steps detected ───────────────────────────────────── */}
+            {stage === "stepsDetected" && (
+              <div
+                className="flex flex-col items-center justify-center px-8"
+                style={{ minHeight: DEMO_HEIGHT }}
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-gray-300 mb-5">
+                  Detected {TOTAL} steps
+                </p>
+                <div className="w-full max-w-xs space-y-2 mb-8">
+                  {STEPS.map((s, i) => (
+                    <div
+                      key={s.id}
+                      className={`flex items-center gap-3 border border-gray-100 px-4 py-2.5 text-sm transition-all duration-300 ${
+                        i < revealed
+                          ? "opacity-100 translate-y-0"
+                          : "opacity-0 translate-y-2"
+                      }`}
+                    >
+                      <span className="h-5 w-5 rounded-full bg-gray-100 text-gray-400 text-[11px] font-medium flex items-center justify-center shrink-0">
+                        {s.id}
+                      </span>
+                      <span className="text-gray-600">{s.label}</span>
+                    </div>
+                  ))}
+                </div>
                 <button
-                  onClick={reset}
-                  className="shrink-0 rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-[#5c5c5c] transition hover:border-[#da5cc7] hover:text-[#da5cc7]"
+                  onClick={() => setStage("interactive")}
+                  disabled={revealed < TOTAL}
+                  className={`rounded-lg px-5 py-2 text-sm font-medium transition-all ${
+                    revealed >= TOTAL
+                      ? "bg-gray-900 text-white hover:bg-gray-800"
+                      : "bg-gray-100 text-gray-300 cursor-not-allowed"
+                  }`}
                 >
-                  ↺ Restart
+                  Start Tutorial
                 </button>
-              )}
-            </div>
+              </div>
+            )}
 
-            <div className="px-6 lg:px-8 py-6 lg:py-7">
-              <FakeProductUI
-                currentTarget={currentTarget}
-                completedTargets={completedTargets}
-                onElementClick={handleElementClick}
-                locked={locked}
-                activeSection={activeSection}
-                activeTab={activeTab}
-              />
-            </div>
-          </article>
+            {/* ── Interactive ──────────────────────────────────────── */}
+            {stage === "interactive" && (
+              <div className="flex flex-col h-full" style={{ minHeight: DEMO_HEIGHT }}>
+                {/* Completion overlay */}
+                {isComplete && (
+                  <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 mb-4">
+                      <Check className="h-6 w-6 text-emerald-500" strokeWidth={2.5} />
+                    </div>
+                    <p className="text-lg font-semibold text-gray-900 mb-1">Tutorial Complete</p>
+                    <p className="text-sm text-gray-400 mb-6">All steps finished successfully</p>
+                    <button
+                      onClick={reset}
+                      className="rounded-lg bg-gray-900 px-5 py-2 text-sm cursor-pointer font-medium text-white hover:bg-gray-800 transition-colors"
+                    >
+                      Restart Demo
+                    </button>
+                  </div>
+                )}
+
+                {/* Feedback overlay */}
+                {feedback !== "idle" && (
+                  <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+                    <div
+                      className={`flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-lg ${
+                        feedback === "correct" ? "ring-1 ring-emerald-100" : "ring-1 ring-rose-100"
+                      }`}
+                    >
+                      {feedback === "correct" ? (
+                        <Check className="h-7 w-7 text-emerald-500" strokeWidth={2.5} />
+                      ) : (
+                        <X className="h-7 w-7 text-rose-400" strokeWidth={2.5} />
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Top bar: progress + instruction */}
+                <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3">
+                  <div className="flex items-center gap-2.5">
+                    {STEPS.map((s) => {
+                      const isDone = doneSteps.includes(s.id);
+                      const isCurrent = s.id === step && !isDone;
+                      return (
+                        <span
+                          key={s.id}
+                          className={`h-1.5 w-5 rounded-full transition-colors duration-300 ${
+                            isDone ? "bg-emerald-400" : isCurrent ? "bg-gray-900" : "bg-gray-200"
+                          }`}
+                        />
+                      );
+                    })}
+                    <span className="text-[11px] text-gray-400 ml-1">
+                      {isComplete ? `${TOTAL}/${TOTAL}` : `${step}/${TOTAL}`}
+                    </span>
+                  </div>
+                  {!isComplete && activeStep && (
+                    <span className="text-[13px] text-gray-500">
+                      {activeStep.label}
+                    </span>
+                  )}
+                </div>
+
+                {/* Content: Product UI + step sidebar */}
+                <div className="flex flex-1 min-h-0">
+                  <div className="relative flex-1 p-5 min-w-0">
+                    <ProductShell
+                      target={target}
+                      done={doneTargets}
+                      onClick={handleClick}
+                      locked={locked}
+                      section={section}
+                      tab={tab}
+                    />
+                  </div>
+
+                  {/* Step sidebar */}
+                  <div className="hidden lg:flex w-48 shrink-0 border-l border-gray-100 flex-col p-4">
+                    <span className="text-[9px] font-semibold uppercase tracking-[0.15em] text-gray-300 mb-3">
+                      Steps
+                    </span>
+                    <div className="space-y-1">
+                      {STEPS.map((s) => {
+                        const isDone = doneSteps.includes(s.id);
+                        const isCurrent = s.id === step && !isDone;
+                        return (
+                          <div
+                            key={s.id}
+                            className={`flex items-center gap-2 px-2.5 py-1.5 text-[12px] rounded transition-all duration-200 ${
+                              isDone
+                                ? "text-emerald-600 bg-emerald-50/60"
+                                : isCurrent
+                                ? "text-gray-900 bg-gray-50 font-medium"
+                                : "text-gray-400"
+                            }`}
+                          >
+                            <span
+                              className={`h-1 w-1 rounded-full shrink-0 ${
+                                isDone ? "bg-emerald-400" : isCurrent ? "bg-gray-900" : "bg-gray-300"
+                              }`}
+                            />
+                            {s.label}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="h-16 lg:h-20" />

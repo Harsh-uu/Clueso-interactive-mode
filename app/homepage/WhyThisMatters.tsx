@@ -75,7 +75,7 @@ export const WhyThisMatters = () => {
         {benefits.map((b) => (
           <div
             key={b.title}
-            className="group rounded-2xl border border-[#c9d3ee]/10 bg-white/3 backdrop-blur-md p-7 transition-all duration-300 hover:border-[#666fdf]/40 hover:bg-white/6"
+            className="group rounded-lg border border-[#c9d3ee]/10 bg-white/3 backdrop-blur-md p-7 transition-all duration-300 hover:border-[#666fdf]/40 hover:bg-white/6"
           >
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#666fdf]/10 text-[#666fdf] mb-5">
               <b.Icon />
