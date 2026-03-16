@@ -10,11 +10,19 @@ export const Hero = () => {
                 </p>
                 <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row gap-3 sm:gap-4 w-full sm:w-auto">
                     <a href="#demo" className="bg-[#d462c5] hover:bg-[#f770e3] px-5 py-2 rounded-lg text-white font-semibold border border-[#c9d3ee]/50 cursor-pointer text-center text-sm sm:text-base">Try Demo</a>
-                    <a href="#context-packs" className="bg-white/10 hover:bg-[#fae6f8] px-5 py-2 rounded-lg text-[#da5cc7] border border-[#da5cc7]/40 cursor-pointer text-center text-sm sm:text-base">View Code</a>
+                    <a href="https://github.com/Harsh-uu/Clueso-interactive-mode" target="_blank" className="bg-white/10 hover:bg-[#fae6f8] px-5 py-2 rounded-lg text-[#da5cc7] border border-[#da5cc7]/40 cursor-pointer text-center text-sm sm:text-base">View Code</a>
                 </div>
             </div>
-            <div data-video-placeholder className="mt-12 w-full aspect-video bg-[#f5f5f5] rounded-lg overflow-hidden border border-gray-200 flex items-center justify-center">
-                <span className="text-[#a3a3a3] text-sm">Video placeholder</span>
+            <div data-video-placeholder className="mt-12 w-full aspect-video bg-white rounded-lg overflow-hidden border border-gray-200">
+                <video
+                    className="h-full w-full object-contain"
+                    src="/hero-video.mp4"
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    preload="metadata"
+                />
             </div>
         </section>
     )

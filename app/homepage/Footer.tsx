@@ -21,7 +21,7 @@ const PortfolioSvg = ({ className }: { className?: string }) => (
 const socials = [
   { Icon: LinkedinSvg, href: "https://linkedin.com/in/harshguptaaa17", label: "LinkedIn" },
   { Icon: PortfolioSvg, href: "https://portfolio-harshuus-projects.vercel.app", label: "Portfolio" },
-  { Icon: GithubSvg, href: "https://github.com/Harsh-uu", label: "GitHub" },
+  { Icon: GithubSvg, href: "https://github.com/Harsh-uu/Clueso-interactive-mode", label: "GitHub" },
 ];
 
 const navLinks = [
@@ -76,7 +76,7 @@ export const Footer = () => {
       <div className="border-t border-gray-100">
         <div className="px-4 md:px-10 lg:px-40 py-3">
           <p className="text-sm text-[#A3A3A3] text-center">
-            © {new Date().getFullYear()} Clueso Interactive Mode. All rights reserved.
+            © {new Date().getFullYear()} Harsh Gupta. All rights reserved.
           </p>
         </div>
       </div>
